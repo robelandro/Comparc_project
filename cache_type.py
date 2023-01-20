@@ -86,7 +86,7 @@ def display_cache_hit_miss():
 	print("Cache miss: " + str(cache_miss))
 
 # Function to display cache hit ratio
-def cache_maping(cache_type):
+def cache_mapping(cache_type):
 	global cache
 	global main_memory
 	global cache_size
@@ -146,7 +146,7 @@ if __name__ == "__main__":
 	display_main_memory()
 
 	# Cache mapping
-	cache_maping(cache_type)
+	cache_mapping(cache_type)
 
 	# Display cache hit and miss
 	display_cache_hit_miss()
