@@ -73,8 +73,8 @@ class Cache:
         return random.randint(0, self.main_memory_size)
 
     def check_word_in_cache(self, word):
+        block_address = word // self.block_size
         if self.mapping_technique == "direct":
-            block_address = word // self.block_size
             if str(block_address) in self.cache_content.keys():
                 print("Word found in cache. Cache hit.")
                 return True
@@ -82,12 +82,12 @@ class Cache:
                 print("Word not found in cache. Cache miss.")
                 return False
         elif self.mapping_technique == "associative":
-            for block in self.cache_content.values():
-                if word in block:
-                    print("Word found in cache. Cache hit.")
-                    return True
-            print("Word not found in cache. Cache miss.")
-            return False
+            if str(block_address) in self.cache_content.keys():
+                print("Word found in cache. Cache hit.")
+                return True
+            else:
+                print("Word not found in cache. Cache miss.")
+                return False
         elif self.mapping_technique == "set-associative":
             set_index = math.floor(word % (self.cache_size / (self.block_size * 2)))
             for i in range(set_index * 2, set_index * 2 + 2):
@@ -123,14 +123,16 @@ class Cache:
                     self.cache_content[block_address] = block
                 else:
                     replacement_technique = repacemnt_memu()
+                    content_dic = self.cache_content_dic()
                     if replacement_technique == "FIFO":
-                        self.cache_content.pop(next(iter(self.cache_content)))
+                        self.cache_content.pop(content_dic[min(content_dic)])
                         self.cache_content[block_address] = block
-                    elif replacement_technique == "LRU":
-                        self.cache_content.pop(min(self.cache_content, key=self.cache_content.get))
+                    elif replacement_technique == "LIFO":
+                        print(content_dic[max(content_dic)])
+                        self.cache_content.pop(content_dic[max(content_dic)])
                         self.cache_content[block_address] = block
                     else:
-                        print("Invalid replacement technique selected.")
+                        print("Invalid replacement technique selected. or not listed in menu.")
                 print(f"Delivering word {word} from main memory block {block_address} to processor.")
             else:
                 print(f"Word {word} not found in main memory.")
@@ -153,6 +155,8 @@ class Cache:
         self.main_memory = self.file_main_memory.load()
     
     def direct_cache_delete(self, word):
+        if self.mapping_technique != "direct":
+            return False
         block_address = word // self.block_size
         line_number = block_address % (self.cache_size // self.block_size)
         total_line = self.cache_size // self.block_size
@@ -172,6 +176,18 @@ class Cache:
             return result
         except KeyError:
             return False
+    
+    def print_word_content(self,word):
+        for block in self.cache_content.values():
+            if word in block:
+                print(f"Word {word} found in cache block {self.cache_content.keys()}")
+                return
+        print(f"Word {word} not found in cache.")
+    
+    def cache_content_dic(self):
+        temp = dict(self.cache_content)
+        temp.pop("Info", None)
+        return {count: key for count, key in enumerate(temp.keys())}
 
 
 def menu():
@@ -221,12 +237,12 @@ def menu():
 def repacemnt_memu():
     print("Please select the replacement technique:")
     print("1. FIFO")
-    print("2. LRU")
+    print("2. LIFO")
     replacement_technique = input("Your choice: ")
     if replacement_technique == "1":
         replacement_technique = "FIFO"
     elif replacement_technique == "2":
-        replacement_technique = "LRU"
+        replacement_technique = "LIFO"
     else:
         print("Invalid choice. Exiting.")
         return None
