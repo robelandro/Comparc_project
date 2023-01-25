@@ -50,19 +50,18 @@ class Cache:
     
     def specification(self):
         print()
-        print("main memory size: {} word".format(self.main_memory_size))
-        print("cache size: {} word".format(self.cache_size))
-        print("block size: {} word".format(self.block_size))
-        print("mapping technique: {}".format(self.mapping_technique))
+        print(f"main memory size: {self.main_memory_size} word")
+        print(f"cache size: {self.cache_size} word")
+        print(f"block size: {self.block_size} word")
+        print(f"mapping technique: {self.mapping_technique}")
         print()
 
-    def visualize_cache(self):
+    def specification(self):
         print()
-        print("Cache content:")
-        for set_key, cache_list in self.cache_content.items():
-            if set_key != "Info":
-                for cache_tag, block_list  in cache_list.items():
-                    print(f"Set {set_key}, Cache {cache_tag}: {block_list}")
+        print(f"main memory size: {self.main_memory_size} word")
+        print(f"cache size: {self.cache_size} word")
+        print(f"block size: {self.block_size} word")
+        print(f"mapping technique: {self.mapping_technique}")
         print()
     
     def visualize_main_memory(self):
@@ -125,9 +124,7 @@ class Cache:
         block_number = self.main_memory_size // self.block_size
 
         for i in range(block_number):
-            block = []
-            for j in range(self.block_size):
-                block.append(self.generate_random_word())
+            block = [self.generate_random_word() for _ in range(self.block_size)]
             self.main_memory[str(i)] = block
         self.file_main_memory.save(self.main_memory)
         self.main_memory = self.file_main_memory.load()
@@ -145,8 +142,7 @@ class Cache:
     def info_checker(self):
         infos = {"mapping_technique": self.mapping_technique, "cache_size": self.cache_size, "block_size": self.block_size, "main_memory_size": self.main_memory_size, "set": self.number_of_set}
         try:
-            result = all(infos[key] == self.cache_content["Info"][key] for key in infos)
-            return result
+            return all(infos[key] == self.cache_content["Info"][key] for key in infos)
         except KeyError:
             return False
     
@@ -167,9 +163,7 @@ class Cache:
         if self.cache_content[str(0)][str(cache_number)][0] == "free":
             self.cache_content[str(0)][str(cache_number)] = [block_tag, block]
         else:
-            self.cache_content[str(0)][str(cache_number)].clear()
-            self.cache_content[str(0)][str(cache_number)].append(block_tag)
-            self.cache_content[str(0)][str(cache_number)].append(block)
+            self._extracted_from_set_associative_mode_6(0, cache_number, block_tag, block)
         
     def associative_mode(self, block_tag, block, total_line):
         cache_number = block_tag % total_line
@@ -179,9 +173,7 @@ class Cache:
         end_cache = start_cache + number_mult - 1
         for i in range(start_cache, end_cache + 1):
             if self.cache_content[str(0)][str(i)][0] == 'free':
-                self.cache_content[str(0)][str(i)].clear()
-                self.cache_content[str(0)][str(i)].append(block_tag)
-                self.cache_content[str(0)][str(i)].append(block)
+                self._extracted_from_set_associative_mode_6(0, i, block_tag, block)
                 return
         self.replacmnet(block_tag, block, start_cache, end_cache)
 
@@ -196,11 +188,15 @@ class Cache:
         # Assosiation implement
         for i in range(start_cache, end_cache + 1):
             if self.cache_content[str(set_key)][str(i)][0] == 'free':
-                self.cache_content[str(set_key)][str(i)].clear()
-                self.cache_content[str(set_key)][str(i)].append(block_tag)
-                self.cache_content[str(set_key)][str(i)].append(block)
+                self._extracted_from_set_associative_mode_6(set_key, i, block_tag, block)
                 return
         self.replacmnet(block_tag, block, start_cache, end_cache, set_key)
+
+    # TODO Rename this here and in `direct_mode`, `associative_mode` and `set_associative_mode`
+    def _extracted_from_set_associative_mode_6(self, arg0, arg1, block_tag, block):
+        self.cache_content[str(arg0)][str(arg1)].clear()
+        self.cache_content[str(arg0)][str(arg1)].append(block_tag)
+        self.cache_content[str(arg0)][str(arg1)].append(block)
 
     def replacmnet(self, block_tag, block, start_cache, end_cache, set_key=0):
         replacement_technique = repacemnt_memu()
@@ -218,15 +214,6 @@ class Cache:
             self.cache_content[str(set_key)][str(end_cache)] = [block_tag, block]
         else:
             print("Invalid replacement technique selected. or not listed in menu.")
-
-    def sort_by_key(self):
-        info = self.cache_content.pop("Info", None) # remove the "Info" key and store it in a separate variable
-        sorted_temp = dict(sorted(self.cache_content.items(), key=lambda x: int(x[0]))) # sort by numerical keys
-        self.cache_content.clear()
-        self.cache_content["Info"] = info  # add "Info" back in as the first key
-        self.cache_content.update(sorted_temp)  # add the sorted keys back in
-        
-
 
 def menu():
     print("💾Welcome to the cache simulator!")
@@ -246,7 +233,7 @@ def menu():
         mapping_technique = "set-associative"
         number_of_set = int(input("Enter Number of Set: "))
         cache = inputer(mapping_technique, number_of_set)
-    elif mapping_technique == "L" or mapping_technique == "l":
+    elif mapping_technique in ["L", "l"]:
         loader = Store_Jason("main_memory.json")
         MM_load = loader.load()
         try:
@@ -277,7 +264,7 @@ def menu():
             cache.visualize_cache()
         elif choice == "3":
             cache.visualize_main_memory()
-        elif choice == "Q" or choice == "q" or choice == "4":
+        elif choice in ["Q", "q", "4"]:
             print("Exiting.☠")
             break
 
