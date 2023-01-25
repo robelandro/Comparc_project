@@ -1,5 +1,5 @@
-#!/usr/bin/env python3
-import random, math, json, os
+#!/usr/bin/python3 
+import random, json, os
 
 
 class Store_Jason:
@@ -21,11 +21,12 @@ class Store_Jason:
 
 
 class Cache:
-    def __init__(self, mapping_technique, cache_size, block_size, main_memory_size=32):
+    def __init__(self, mapping_technique, cache_size, block_size, main_memory_size=32, number_of_set=None):
         self.mapping_technique = mapping_technique
         self.cache_size = cache_size
         self.block_size = block_size
         self.main_memory_size = main_memory_size
+        self.number_of_set = number_of_set
         self.cache_content = {}
         self.main_memory = {}
         self.file_cache = Store_Jason("cache_content.json")
@@ -42,9 +43,9 @@ class Cache:
             if os.path.exists("main_memory.json"):
                 os.remove("main_memory.json")
                 self.main_memory = {}
-            self.cache_content["Info"] = {"mapping_technique": self.mapping_technique, "cache_size": self.cache_size, "block_size": self.block_size, "main_memory_size": self.main_memory_size}
+            self.cache_content["Info"] = {"mapping_technique": self.mapping_technique, "cache_size": self.cache_size, "block_size": self.block_size, "main_memory_size": self.main_memory_size, "set": self.number_of_set}
             self.file_cache.save(self.cache_content)
-            self.main_memory["Info"] = {"mapping_technique": self.mapping_technique, "cache_size": self.cache_size, "block_size": self.block_size, "main_memory_size": self.main_memory_size}
+            self.main_memory["Info"] = {"mapping_technique": self.mapping_technique, "cache_size": self.cache_size, "block_size": self.block_size, "main_memory_size": self.main_memory_size, "set": self.number_of_set}
             self.file_main_memory.save(self.main_memory)
     
     def specification(self):
@@ -58,82 +59,59 @@ class Cache:
     def visualize_cache(self):
         print()
         print("Cache content:")
-        for address, block in self.cache_content.items():
-            print(f"Block {address}: {block}")
+        for set_key, cache_list in self.cache_content.items():
+            if set_key != "Info":
+                for cache_tag, block_list  in cache_list.items():
+                    print(f"Set {set_key}, Cache {cache_tag}: {block_list}")
         print()
     
     def visualize_main_memory(self):
         print()
         print("Main memory content:")
-        for address, block in self.main_memory.items():
-            print(f"Block {address}: {block}")
+        for block_tag, block in self.main_memory.items():
+            if block_tag != "Info":
+                print(f"Block {block_tag}: {block}")
         print()
 
     def generate_random_word(self):
         return random.randint(0, self.main_memory_size)
 
     def check_word_in_cache(self, word):
-        block_address = word // self.block_size
-        if self.mapping_technique == "direct":
-            if str(block_address) in self.cache_content.keys():
-                print("Word found in cache. Cache hit.")
-                return True
-            else:
-                print("Word not found in cache. Cache miss.")
-                return False
-        elif self.mapping_technique == "associative":
-            if str(block_address) in self.cache_content.keys():
-                print("Word found in cache. Cache hit.")
-                return True
-            else:
-                print("Word not found in cache. Cache miss.")
-                return False
-        elif self.mapping_technique == "set-associative":
-            set_index = math.floor(word % (self.cache_size / (self.block_size * 2)))
-            for i in range(set_index * 2, set_index * 2 + 2):
-                if i in self.cache_content and word in self.cache_content[i]:
-                    print("Word found in cache. Cache hit.")
-                    return True
-            print("Word not found in cache. Cache miss.")
-            return False
-        else:
-            print("Invalid mapping technique selected.")
-            return False
+        block_tag = word // self.block_size
+        for set_key, cache_list in self.cache_content.items():
+            if set_key != "Info":
+                for cache_tag, block_list in cache_list.items():
+                    if str(block_tag) == str(block_list[0]):
+                        print(f"Word {word} found in cache block {block_tag}. cache hit.")
+                        return True
+        print(f"Word {word} not found in cache. cache miss.")
+        return False
 
     def bring_word_from_memory(self, word):
-        block_address = str(word // self.block_size)
-        if block_address in self.main_memory.keys():
-            print(f"Word found in main memory. Bringing block {block_address} to cache.")
-            return self.main_memory[block_address]
+        block_tag = str(word // self.block_size)
+        if block_tag in self.main_memory.keys():
+            print(f"Word found in main memory. Bringing block {block_tag} to cache.")
+            return self.main_memory[block_tag]
         else:
             print("Word not found in main memory.")
             return None
 
     def deliver_word_to_processor(self, word):
-        block_address = word // self.block_size
+        block_tag = word // self.block_size
+        total_line = self.cache_size // self.block_size
         if self.check_word_in_cache(word):
-            block_address = word // self.block_size
-            print(f"Delivering word {word} from cache block {block_address} to processor.")
+            block_tag = word // self.block_size
+            print(f"Delivering word {word} from cache block {block_tag} to processor.")
         else:
             block = self.bring_word_from_memory(word)
             if block is not None:
-                if self.direct_cache_delete(word):
-                    self.cache_content[block_address] = block
-                elif len(self.cache_content) < (self.cache_size // self.block_size) + 1:
-                    self.cache_content[block_address] = block
-                else:
-                    replacement_technique = repacemnt_memu()
-                    content_dic = self.cache_content_dic()
-                    if replacement_technique == "FIFO":
-                        self.cache_content.pop(content_dic[min(content_dic)])
-                        self.cache_content[block_address] = block
-                    elif replacement_technique == "LIFO":
-                        print(content_dic[max(content_dic)])
-                        self.cache_content.pop(content_dic[max(content_dic)])
-                        self.cache_content[block_address] = block
-                    else:
-                        print("Invalid replacement technique selected. or not listed in menu.")
-                print(f"Delivering word {word} from main memory block {block_address} to processor.")
+                if self.mapping_technique == "direct":
+                    self.direct_mode(block_tag, block, total_line)
+                elif self.mapping_technique == "associative":
+                    self.associative_mode(block_tag, block, total_line)
+                elif self.mapping_technique == "set-associative":
+                    self.set_associative_mode(block_tag, block, total_line)
+                print(f"Delivering word {word} from main memory block {block_tag} to processor.")
             else:
                 print(f"Word {word} not found in main memory.")
         
@@ -154,23 +132,18 @@ class Cache:
         self.file_main_memory.save(self.main_memory)
         self.main_memory = self.file_main_memory.load()
     
-    def direct_cache_delete(self, word):
-        if self.mapping_technique != "direct":
-            return False
-        block_address = word // self.block_size
-        line_number = block_address % (self.cache_size // self.block_size)
+    def fill_cache(self):
         total_line = self.cache_size // self.block_size
-        total_block = self.main_memory_size // self.block_size
-
-        for i in range(line_number, total_block, total_line):
-            if i is not block_address and str(i) in self.cache_content.keys():
-                self.cache_content.pop(str(i))
-                print(f"Block {i} deleted from cache.")
-                return True
-        return False
+        number_mult = total_line // self.number_of_set
+        for i in range(self.number_of_set):
+            self.cache_content[i] = {}
+            for j in range(number_mult):
+                self.cache_content[i][str(i * number_mult + j)] = ["free"]
+        self.file_cache.save(self.cache_content)
+        self.cache_content = self.file_cache.load()
 
     def info_checker(self):
-        infos = {"mapping_technique": self.mapping_technique, "cache_size": self.cache_size, "block_size": self.block_size, "main_memory_size": self.main_memory_size}
+        infos = {"mapping_technique": self.mapping_technique, "cache_size": self.cache_size, "block_size": self.block_size, "main_memory_size": self.main_memory_size, "set": self.number_of_set}
         try:
             result = all(infos[key] == self.cache_content["Info"][key] for key in infos)
             return result
@@ -184,10 +157,75 @@ class Cache:
                 return
         print(f"Word {word} not found in cache.")
     
-    def cache_content_dic(self):
-        temp = dict(self.cache_content)
-        temp.pop("Info", None)
-        return {count: key for count, key in enumerate(temp.keys())}
+    # def cache_content_dic(self):
+    #     temp = dict(self.cache_content)
+    #     temp.pop("Info", None)
+    #     return {count: key for count, key in enumerate(temp.keys())}
+
+    def direct_mode(self, block_tag, block, total_line):
+        cache_number = block_tag % total_line
+        if self.cache_content[str(0)][str(cache_number)][0] == "free":
+            self.cache_content[str(0)][str(cache_number)] = [block_tag, block]
+        else:
+            self.cache_content[str(0)][str(cache_number)].clear()
+            self.cache_content[str(0)][str(cache_number)].append(block_tag)
+            self.cache_content[str(0)][str(cache_number)].append(block)
+        
+    def associative_mode(self, block_tag, block, total_line):
+        cache_number = block_tag % total_line
+        number_mult = total_line // self.number_of_set
+        # define range where is set_key will be valid
+        start_cache = 0 * number_mult
+        end_cache = start_cache + number_mult - 1
+        for i in range(start_cache, end_cache + 1):
+            if self.cache_content[str(0)][str(i)][0] == 'free':
+                self.cache_content[str(0)][str(i)].clear()
+                self.cache_content[str(0)][str(i)].append(block_tag)
+                self.cache_content[str(0)][str(i)].append(block)
+                return
+        self.replacmnet(block_tag, block, start_cache, end_cache)
+
+    def set_associative_mode(self, block_tag, block, total_line):
+        # getting where is the key
+        set_key = block_tag % (self.number_of_set)
+        number_mult = total_line // self.number_of_set
+        # define range where is set_key will be valid
+        start_cache = set_key * number_mult
+        end_cache = start_cache + number_mult - 1
+
+        # Assosiation implement
+        for i in range(start_cache, end_cache + 1):
+            if self.cache_content[str(set_key)][str(i)][0] == 'free':
+                self.cache_content[str(set_key)][str(i)].clear()
+                self.cache_content[str(set_key)][str(i)].append(block_tag)
+                self.cache_content[str(set_key)][str(i)].append(block)
+                return
+        self.replacmnet(block_tag, block, start_cache, end_cache, set_key)
+
+    def replacmnet(self, block_tag, block, start_cache, end_cache, set_key=0):
+        replacement_technique = repacemnt_memu()
+        if replacement_technique == "FIFO":
+            for i in range(start_cache, end_cache + 1):
+                if end_cache == i:
+                    self.cache_content[str(set_key)][str(end_cache)].clear()
+                    self.cache_content[str(set_key)][str(end_cache)] =[block_tag, block]
+                else:
+                    self.cache_content[str(set_key)][str(i)].clear()
+                    self.cache_content[str(set_key)][str(i)].append(self.cache_content[str(set_key)][str(i + 1)][0])
+                    self.cache_content[str(set_key)][str(i)].append(self.cache_content[str(set_key)][str(i + 1)][1])
+        elif replacement_technique == "LIFO":
+            self.cache_content[str(set_key)][str(end_cache)].clear()
+            self.cache_content[str(set_key)][str(end_cache)] = [block_tag, block]
+        else:
+            print("Invalid replacement technique selected. or not listed in menu.")
+
+    def sort_by_key(self):
+        info = self.cache_content.pop("Info", None) # remove the "Info" key and store it in a separate variable
+        sorted_temp = dict(sorted(self.cache_content.items(), key=lambda x: int(x[0]))) # sort by numerical keys
+        self.cache_content.clear()
+        self.cache_content["Info"] = info  # add "Info" back in as the first key
+        self.cache_content.update(sorted_temp)  # add the sorted keys back in
+        
 
 
 def menu():
@@ -196,24 +234,33 @@ def menu():
     print("1. Direct mapping")
     print("2. Associative mapping")
     print("3. Set-associative mapping")
+    print("L. For load from pervious")
     mapping_technique = input("Your choice: ")
     if mapping_technique == "1":
         mapping_technique = "direct"
+        cache = inputer(mapping_technique, 1)
     elif mapping_technique == "2":
         mapping_technique = "associative"
+        cache = inputer(mapping_technique, 1)
     elif mapping_technique == "3":
         mapping_technique = "set-associative"
+        number_of_set = int(input("Enter Number of Set: "))
+        cache = inputer(mapping_technique, number_of_set)
+    elif mapping_technique == "L" or mapping_technique == "l":
+        loader = Store_Jason("main_memory.json")
+        MM_load = loader.load()
+        try:
+            cache = Cache(MM_load["Info"]["mapping_technique"], 
+            int(MM_load["Info"]["cache_size"]), 
+            int(MM_load["Info"]["block_size"]), 
+            int(MM_load["Info"]["main_memory_size"]), 
+            int(MM_load["Info"]["set"]))
+        except KeyError:
+            print("No previous data found.")
+            exit()
     else:
         print("Invalid choice. Exiting.")
         exit()
-
-    cache_size = int(input("Please enter the cache size: "))
-    block_size = int(input("Please enter the block size: "))
-    main_memory_size = int(input("Please enter the main memory size: "))
-    cache = Cache(mapping_technique, cache_size, block_size, main_memory_size)
-    cache.fill_main_memory()
-    cache.visualize_cache()
-    cache.visualize_main_memory()
 
     while True:
         print()
@@ -247,6 +294,17 @@ def repacemnt_memu():
         print("Invalid choice. Exiting.")
         return None
     return replacement_technique
+
+def inputer(mapping_technique, number_of_set=None):
+    cache_size = int(input("Please enter the cache size: "))
+    block_size = int(input("Please enter the block size: "))
+    main_memory_size = int(input("Please enter the main memory size: "))
+    cache = Cache(mapping_technique, cache_size, block_size, main_memory_size, number_of_set)
+    cache.fill_main_memory()
+    cache.fill_cache()
+    cache.visualize_cache()
+    cache.visualize_main_memory()
+    return cache
 
 if __name__ == "__main__":
     # Menu
